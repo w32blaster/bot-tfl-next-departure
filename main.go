@@ -67,7 +67,7 @@ func main() {
 		} else if update.InlineQuery != nil {
 
 			// this is inline query
-			log.Println("This is inline query, that shows some ")
+			commands.ProcessInlineQuery(bot, update.InlineQuery)
 		}
 
 	}

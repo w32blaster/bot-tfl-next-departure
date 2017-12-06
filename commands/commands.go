@@ -33,6 +33,27 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 }
 
+// ProcessInlineQuery returns the array of suggested stations for the Inline Query
+func ProcessInlineQuery(bot *tgbotapi.BotAPI, inlineQuery *tgbotapi.InlineQuery) error {
+
+	// firstly, make query to TFL
+	searchQuery := inlineQuery.Query
+	foundStations := GetStationListByPattern(searchQuery)
+
+	answer := tgbotapi.InlineConfig{
+		InlineQueryID: inlineQuery.ID,
+		CacheTime:     3,
+		Results:       foundStations,
+	}
+
+	if resp, err := bot.AnswerInlineQuery(answer); err != nil {
+		log.Fatal("ERROR! bot.answerInlineQuery:", err, resp)
+		return err
+	}
+
+	return nil
+}
+
 // properly extracts command from the input string, removing all unnecessary parts
 // please refer to unit tests for details
 func extractCommand(rawCommand string) string {
