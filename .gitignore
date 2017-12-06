@@ -1,3 +1,5 @@
 
 # Ignore all the vendor sources
 vendor/*/
+
+bot-tfl-next-departure
