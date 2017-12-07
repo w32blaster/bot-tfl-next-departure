@@ -25,3 +25,45 @@ type Station struct {
 	Name  string   `json:"name"`
 	Modes []string `json:"modes"`
 }
+
+// TFLJourneyQueryResult root response with query results
+type TFLJourneyQueryResult struct {
+	Journeys []Journey `json:"journeys"`
+}
+
+// Journey json wrapper
+type Journey struct {
+	StartDateTime string `json:"startDateTime"`
+	Diration      int    `json:"duration"`
+	Legs          []Leg  `json:"legs"`
+}
+
+// Leg
+type Leg struct {
+	DepartureTime  string         `json:"departureTime"`
+	IsDisrupted    bool           `json:"isDisrupted"`
+	Mode           Mode           `json:"mode"`
+	DeparturePoint DeparturePoint `json:"departurePoint"`
+	Instruction    Instruction    `json:"instruction"`
+}
+
+// Instruction
+type Instruction struct {
+	Summary  string `json:"Summary"`
+	Detailed string `json:"Detailed"`
+}
+
+// DeparturePoint
+type DeparturePoint struct {
+	IcsID        string `json:"icsId"`
+	PlatformName string `json:"platformName"`
+	StopLetter   string `json:"stopLetter"`
+	CommonName   string `json:"commonName"`
+	PlaceType    string `json:"placeType"`
+}
+
+// Mode
+type Mode struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}

@@ -35,13 +35,60 @@ func GetStationListByPattern(searchingPattern string, opts *structs.Opts) []inte
 
 		// Build one line for inline answer (one result)
 		strStationID := fmt.Sprint(station.IcsID)
-		answer := tgbotapi.NewInlineQueryResultArticleHTML(strStationID, station.Name, "/station "+strStationID)
+		answer := tgbotapi.NewInlineQueryResultArticleHTML(strStationID, station.Name, "Selected Station: "+strStationID)
 		answer.Description = html.EscapeString(printModesInMarkdown(station.Modes))
 
 		answers = append(answers, answer)
 	}
 
 	return answers
+}
+
+// GetTimesBetweenStations calls TFL for a journey information and
+// prints in formatted list
+func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, opts *structs.Opts) (string, error) {
+
+	location, _ := time.LoadLocation("Europe/London")
+	now := time.Now().In(location).Format("1504")
+
+	apiURL := "https://api.tfl.gov.uk/Journey/JourneyResults/" + stationOneIcsID + "/to/" + stationTwoIcsID + "?nationalSearch=true&time=" + now + "&app_id=" + opts.AppID + "&app_key=" + opts.APIKEY
+
+	fmt.Println(" URL IS " + apiURL)
+
+	// call API
+	resp, err := httpClient.Get(apiURL)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	// parse JSON
+	var result structs.TFLJourneyQueryResult
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	fmt.Print("Result from TFL: ")
+	fmt.Println(result)
+	fmt.Println(" journeys: ")
+	fmt.Println(result.Journeys)
+
+	// now, make the list in Markdown style
+	var buffer bytes.Buffer
+	for _, journey := range result.Journeys {
+		buffer.WriteString("● *")
+		buffer.WriteString(journey.StartDateTime)
+		buffer.WriteString("* (")
+
+		if len(journey.Legs) > 0 {
+			buffer.WriteString(journey.Legs[0].Mode.Name)
+			buffer.WriteString(", ")
+			buffer.WriteString(journey.Legs[0].Instruction.Summary)
+		}
+
+		buffer.WriteString(")\n")
+	}
+
+	return buffer.String(), nil
 }
 
 // Call TFL API for a stations

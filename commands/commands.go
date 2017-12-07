@@ -35,11 +35,7 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		sendMsg(bot, chatID, html.EscapeString(help))
 
 	default:
-		if strings.HasPrefix(command, "/station") {
-			OnStationSelected(bot, chatID, message.From.ID, command)
-		} else {
-			sendMsg(bot, chatID, "Sorry, I don't recognyze such command: "+command+", please call /help to get full list of commands I understand")
-		}
+		sendMsg(bot, chatID, "Sorry, I don't recognyze such command: "+command+", please call /help to get full list of commands I understand")
 	}
 
 }
@@ -65,13 +61,44 @@ func ProcessInlineQuery(bot *tgbotapi.BotAPI, inlineQuery *tgbotapi.InlineQuery,
 	return nil
 }
 
+// ProcessButtonCallback fired when a user click to some button in screen
+func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery) {
+
+	// in this switch we decide which exactly button was clicked
+	switch callbackQuery.Data {
+
+	case buttonCommandReset:
+
+		// the button "start from the beginning" was clicked
+		state.ResetStateForUser(callbackQuery.From.ID)
+
+		// let's clean previous messages and button
+		editConfig := tgbotapi.EditMessageTextConfig{
+			BaseEdit: tgbotapi.BaseEdit{
+				ChatID:    callbackQuery.Message.Chat.ID,
+				MessageID: callbackQuery.Message.MessageID,
+			},
+			Text: "Ok, let's start from the beginning. Start typing a station name again",
+		}
+		bot.Send(editConfig)
+
+	}
+
+	// notify the telegram that we processed the button, it will turn "loading indicator" off
+	bot.AnswerCallbackQuery(tgbotapi.CallbackConfig{
+		CallbackQueryID: callbackQuery.ID,
+	})
+}
+
 // OnStationSelected function processes the case when user selected some station.
 // If this is the first selection (start station), then we save this value and suggest to
 // select another one. If this is the second selection (destination), then find times for this journey
-func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command string) {
+func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command string, opts *structs.Opts) {
 
 	previouslySelectedStation := state.GetPreviouslySelectedStation(userID)
-	stationID := strings.Split(command, " ")[1]
+	stationID := strings.Split(command, " ")[2]
+
+	fmt.Println("Selected station id is " + stationID)
 
 	if len(previouslySelectedStation) == 0 {
 
@@ -85,7 +112,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 
 		// 3. send the keyboard layout with one button "start from the beginning"
 		keyboard := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData("❌  Start from the beginning ", buttonCommandReset),
+			tgbotapi.NewInlineKeyboardButtonData("🔙  Start from the beginning ", buttonCommandReset),
 		})
 
 		keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
@@ -94,7 +121,12 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 	} else {
 
 		// user selected two stations, print the journey data
-		sendMsg(bot, chatID, "here will be journey")
+		markdownText, err := GetTimesBetweenStations(state.GetPreviouslySelectedStation(userID), stationID, opts)
+		if err != nil {
+			sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey")
+		} else {
+			sendMsg(bot, chatID, markdownText)
+		}
 	}
 
 }

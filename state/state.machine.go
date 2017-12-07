@@ -13,3 +13,9 @@ func GetPreviouslySelectedStation(user int) string {
 func SaveSelectedStationForUser(user int, stationID string) {
 	previousStation = stationID
 }
+
+// ResetStateForUser removes any state for given user allowing him/her to start from
+// the beginning
+func ResetStateForUser(user int) {
+	previousStation = ""
+}
