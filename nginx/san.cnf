@@ -1,0 +1,17 @@
+[ req ]
+default_bits       = 2048
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+
+[ req_distinguished_name ]
+countryName                 = UK
+stateOrProvinceName         = London
+localityName                = London
+organizationName            = MOO Print LTD
+commonName                  = 1.2.3.4
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = 1.2.3.4
