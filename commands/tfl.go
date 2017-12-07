@@ -13,30 +13,18 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/w32blaster/bot-tfl-next-departure/structs"
 	"gopkg.in/telegram-bot-api.v4"
 )
-
-type TFLInlineQueryResult struct {
-	Total   int       `json:"total"`
-	Query   string    `json:"query"`
-	Matches []Station `json:"matches"`
-}
-
-type Station struct {
-	IcsID string   `json:"icsId"`
-	ID    string   `json:"id"`
-	Name  string   `json:"name"`
-	Modes []string `json:"modes"`
-}
 
 var httpClient = http.Client{Timeout: time.Duration(3 * time.Second)}
 
 // GetStationListByPattern make a HTTP request to TFL and build up the response
-func GetStationListByPattern(searchingPattern string) []interface{} {
+func GetStationListByPattern(searchingPattern string, opts *structs.Opts) []interface{} {
 	var answers []interface{}
 
 	// make HTTP request to TFL
-	results, error := performHTTPRequestToTFLForStations(searchingPattern)
+	results, error := performHTTPRequestToTFLForStations(searchingPattern, opts)
 	if error != nil {
 		log.Println(error)
 		return make([]interface{}, 0)
@@ -47,7 +35,7 @@ func GetStationListByPattern(searchingPattern string) []interface{} {
 
 		// Build one line for inline answer (one result)
 		strStationID := fmt.Sprint(station.IcsID)
-		answer := tgbotapi.NewInlineQueryResultArticleMarkdown(strStationID, station.Name, "/station-"+strStationID)
+		answer := tgbotapi.NewInlineQueryResultArticleHTML(strStationID, station.Name, "/station "+strStationID)
 		answer.Description = html.EscapeString(printModesInMarkdown(station.Modes))
 
 		answers = append(answers, answer)
@@ -64,10 +52,10 @@ func GetStationListByPattern(searchingPattern string) []interface{} {
 // or, here is the example request:
 //      https://api.tfl.gov.uk/StopPoint/Search?query=Camden%20Town
 //
-func performHTTPRequestToTFLForStations(searchingPattern string) (*[]Station, error) {
+func performHTTPRequestToTFLForStations(searchingPattern string, opts *structs.Opts) (*[]structs.Station, error) {
 
 	// firstly, prepare request URL
-	apiURL := "https://api.tfl.gov.uk/StopPoint/Search?query=" + url.PathEscape(searchingPattern) + "&maxResults=10&app_id=4c754c2a&app_key=9eec9fd4bb56bf3732b2627b391d05b9"
+	apiURL := "https://api.tfl.gov.uk/StopPoint/Search?query=" + url.PathEscape(searchingPattern) + "&maxResults=10&app_id=" + opts.AppID + "&app_key=" + opts.APIKEY
 
 	// call API
 	resp, err := httpClient.Get(apiURL)
@@ -78,7 +66,7 @@ func performHTTPRequestToTFLForStations(searchingPattern string) (*[]Station, er
 	defer resp.Body.Close()
 
 	// parse JSON
-	var result TFLInlineQueryResult
+	var result structs.TFLInlineQueryResult
 	json.NewDecoder(resp.Body).Decode(&result)
 
 	return &result.Matches, nil

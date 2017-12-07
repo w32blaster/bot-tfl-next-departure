@@ -3,27 +3,21 @@ package main
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"log"
 
 	flags "github.com/jessevdk/go-flags"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/w32blaster/bot-tfl-next-departure/commands"
+	"github.com/w32blaster/bot-tfl-next-departure/structs"
 	"gopkg.in/telegram-bot-api.v4"
 )
-
-// command line arguments
-var opts struct {
-	Port    int    `short:"p" long:"port" description:"The port for the bot. The default is 8444" default:"8444"`
-	Host    string `short:"h" long:"host" description:"The hostname for the bot. Default is localhost" default:"localhost"`
-	IsDebug bool   `short:"d" long:"debug" description:"Is it debug? Default is true. Disable it for production."`
-
-	BotToken string `short:"b" long:"bot-token" description:"The Bot-Token. As long as it is the sencitive data, we can't keep it in Github" required:"true"`
-}
 
 func main() {
 
 	// get the command line arguments and parse them
+	var opts = structs.Opts{}
 	_, err := flags.Parse(&opts)
 	if err != nil {
 		panic(err)
@@ -34,7 +28,8 @@ func main() {
 		panic("Bot doesn't work")
 	}
 
-	bot.Debug = true
+	bot.Debug = opts.IsDebug
+
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 	updates := bot.ListenForWebhook("/" + bot.Token)
 
@@ -47,15 +42,21 @@ func main() {
 			if update.Message.IsCommand() {
 
 				// This is a command
-				log.Println("This is Command")
 				commands.ProcessCommands(bot, update.Message)
 
 			} else {
 
 				if update.Message.ReplyToMessage == nil {
 
-					// This is a simple text
-					log.Println("This is plain text")
+					if strings.HasPrefix(update.Message.Text, "/station") {
+
+						// user selected some inline query here
+						commands.OnStationSelected(bot, update.Message.Chat.ID, update.Message.From.ID, update.Message.Text)
+
+					} else {
+						// This is a simple text
+						log.Println("This is plain text: " + update.Message.Text)
+					}
 				}
 			}
 
@@ -67,7 +68,7 @@ func main() {
 		} else if update.InlineQuery != nil {
 
 			// this is inline query
-			commands.ProcessInlineQuery(bot, update.InlineQuery)
+			commands.ProcessInlineQuery(bot, update.InlineQuery, &opts)
 		}
 
 	}
