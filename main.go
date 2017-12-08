@@ -63,7 +63,7 @@ func main() {
 		} else if update.CallbackQuery != nil {
 
 			// this is the callback after a button click
-			commands.ProcessButtonCallback(bot, update.CallbackQuery)
+			commands.ProcessButtonCallback(bot, update.CallbackQuery, &opts)
 
 		} else if update.InlineQuery != nil {
 

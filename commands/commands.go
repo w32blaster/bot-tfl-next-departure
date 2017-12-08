@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"log"
@@ -13,6 +14,8 @@ import (
 
 const (
 	buttonCommandReset = "startFromBeginning"
+	commandUpdate      = "update"
+	saveCommand        = "save"
 )
 
 // ProcessCommands acts when user sent to a bot some command, for example "/command arg1 arg2"
@@ -62,12 +65,15 @@ func ProcessInlineQuery(bot *tgbotapi.BotAPI, inlineQuery *tgbotapi.InlineQuery,
 }
 
 // ProcessButtonCallback fired when a user click to some button in screen
-func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery) {
+// We expect to have 4 buttons:
+//    1. start from beginning
+//    2. show only tube times
+//    3. show only bus times
+//    4. save bookmarks
+func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery, opts *structs.Opts) {
 
 	// in this switch we decide which exactly button was clicked
-	switch callbackQuery.Data {
-
-	case buttonCommandReset:
+	if callbackQuery.Data == buttonCommandReset {
 
 		// the button "start from the beginning" was clicked
 		state.ResetStateForUser(callbackQuery.From.ID)
@@ -81,6 +87,33 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 			Text: "Ok, let's start from the beginning. Start typing a station name again",
 		}
 		bot.Send(editConfig)
+
+	} else {
+
+		// we assume the JSON is encoded to the button's data
+		var journeyRequest structs.JourneyRequest
+		json.Unmarshal([]byte(callbackQuery.Data), &journeyRequest)
+
+		// now update already printed timetables with new results
+		if journeyRequest.Command == commandUpdate {
+
+			markdownText, err := GetTimesBetweenStations(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
+
+			if err != nil {
+
+				// let's update previous message with new timetables
+				editConfig := tgbotapi.EditMessageTextConfig{
+					BaseEdit: tgbotapi.BaseEdit{
+						ChatID:    callbackQuery.Message.Chat.ID,
+						MessageID: callbackQuery.Message.MessageID,
+					},
+					Text: markdownText,
+				}
+				bot.Send(editConfig)
+			}
+		} else {
+			// TODO: save bookmark here
+		}
 
 	}
 
@@ -97,8 +130,6 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 
 	previouslySelectedStation := state.GetPreviouslySelectedStation(userID)
 	stationID := strings.Split(command, " ")[2]
-
-	fmt.Println("Selected station id is " + stationID)
 
 	if len(previouslySelectedStation) == 0 {
 
@@ -120,15 +151,45 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 
 	} else {
 
-		// user selected two stations, print the journey data
-		markdownText, err := GetTimesBetweenStations(state.GetPreviouslySelectedStation(userID), stationID, opts)
+		// here we appear after a user selects both stations and we ready to show timetables
+		stationIDFrom := state.GetPreviouslySelectedStation(userID)
+		markdownText, err := GetTimesBetweenStations(stationIDFrom, stationID, "", opts)
+
 		if err != nil {
 			sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey")
 		} else {
-			sendMsg(bot, chatID, markdownText)
+
+			// 1. Send result to client
+			resp, _ := sendMsg(bot, chatID, markdownText)
+
+			fmt.Println("0----- HERE IS JSON:")
+			json := asJSON(stationIDFrom, stationID, "tube", commandUpdate)
+			fmt.Println(json)
+			fmt.Println("{ \"stationFrom\":\"test\", \"page\":2}")
+
+			fmt.Println("--")
+
+			// 2. Print buttons to save the trip and to narrow to one type of transport
+			keyboard := tgbotapi.NewInlineKeyboardMarkup(
+
+				// row 1
+				[]tgbotapi.InlineKeyboardButton{
+					tgbotapi.NewInlineKeyboardButtonData("🚇  Show only tube ", "{ \"stationFrom\":\"test\", \"page\":2}"), // HZ BLJAT :(((
+					tgbotapi.NewInlineKeyboardButtonData("🚌  Show only buses ", "{ \"title\":\"test\", \"page\":1}"),
+				},
+
+				// row 2
+				[]tgbotapi.InlineKeyboardButton{
+					tgbotapi.NewInlineKeyboardButtonData("🔖 Bookmark this search", "test2"),
+				})
+
+			keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
+
+			msg, err := bot.Send(keyboardMsg)
+			fmt.Println(msg)
+			fmt.Println(err)
 		}
 	}
-
 }
 
 // properly extracts command from the input string, removing all unnecessary parts
@@ -163,4 +224,17 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, textMarkdown string) (tgbotapi.
 	}
 
 	return resp, err
+}
+
+// shortcut method to encode object to JSON
+func asJSON(stationFrom string, stationTo string, mode string, command string) string {
+	journey := &structs.JourneyRequest{
+		StationIDFrom: stationFrom,
+		StationIDTo:   stationTo,
+		Mode:          mode,
+		Command:       command,
+	}
+
+	bytesJSON, _ := json.Marshal(journey)
+	return string(bytesJSON)
 }

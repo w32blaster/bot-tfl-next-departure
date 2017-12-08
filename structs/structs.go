@@ -67,3 +67,11 @@ type Mode struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// JourneyRequest object that could be encoded to JSON for buttons and bookmarks
+type JourneyRequest struct {
+	StationIDFrom string `json:"stationFrom"`
+	StationIDTo   string `json:"stationTo"`
+	Mode          string `json:"mode"`
+	Command       string `json:"command"` // update view or save bookmarks
+}

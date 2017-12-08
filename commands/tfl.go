@@ -46,14 +46,15 @@ func GetStationListByPattern(searchingPattern string, opts *structs.Opts) []inte
 
 // GetTimesBetweenStations calls TFL for a journey information and
 // prints in formatted list
-func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, opts *structs.Opts) (string, error) {
+func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, mode string, opts *structs.Opts) (string, error) {
 
 	location, _ := time.LoadLocation("Europe/London")
 	now := time.Now().In(location).Format("1504")
 
 	apiURL := "https://api.tfl.gov.uk/Journey/JourneyResults/" + stationOneIcsID + "/to/" + stationTwoIcsID + "?nationalSearch=true&time=" + now + "&app_id=" + opts.AppID + "&app_key=" + opts.APIKEY
-
-	fmt.Println(" URL IS " + apiURL)
+	if len(mode) > 0 {
+		apiURL = apiURL + "&mode=" + mode
+	}
 
 	// call API
 	resp, err := httpClient.Get(apiURL)
@@ -67,16 +68,18 @@ func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, opt
 	var result structs.TFLJourneyQueryResult
 	json.NewDecoder(resp.Body).Decode(&result)
 
-	fmt.Print("Result from TFL: ")
-	fmt.Println(result)
-	fmt.Println(" journeys: ")
-	fmt.Println(result.Journeys)
-
 	// now, make the list in Markdown style
 	var buffer bytes.Buffer
 	for _, journey := range result.Journeys {
 		buffer.WriteString("● *")
-		buffer.WriteString(journey.StartDateTime)
+
+		date, err := parseTflDate(journey.StartDateTime)
+		if err != nil {
+			buffer.WriteString(journey.StartDateTime)
+		} else {
+			buffer.WriteString(date.Format("15:04"))
+		}
+
 		buffer.WriteString("* (")
 
 		if len(journey.Legs) > 0 {
@@ -133,4 +136,18 @@ func printModesInMarkdown(arr []string) string {
 	}
 
 	return buffer.String()
+}
+
+// simply parses the date provided by TFL
+func parseTflDate(strDate string) (time.Time, error) {
+
+	//example: 2017-12-08T08:58:00
+	layout := "2006-01-02T15:04:05"
+	t, err := time.Parse(layout, strDate)
+
+	if err != nil {
+		return time.Now(), err
+	}
+
+	return t, nil
 }
