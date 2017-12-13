@@ -69,9 +69,10 @@ type Mode struct {
 }
 
 // JourneyRequest object that could be encoded to JSON for buttons and bookmarks
+// There is limitation for the data sent to buttons - 64 bytes, so we try to keep JSON as short as possible
 type JourneyRequest struct {
-	StationIDFrom string `json:"stationFrom"`
-	StationIDTo   string `json:"stationTo"`
-	Mode          string `json:"mode"`
-	Command       string `json:"command"` // update view or save bookmarks
+	StationIDFrom string `json:"f"`
+	StationIDTo   string `json:"t"`
+	Mode          string `json:"m"`
+	Command       string `json:"c"` // update view or save bookmarks
 }

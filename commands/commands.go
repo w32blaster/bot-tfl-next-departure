@@ -14,8 +14,9 @@ import (
 
 const (
 	buttonCommandReset = "startFromBeginning"
-	commandUpdate      = "update"
-	saveCommand        = "save"
+	// keep short to meet Telegram API limitation for the button date (64 bytes)
+	commandUpdate = "u"
+	commandSave   = "s"
 )
 
 // ProcessCommands acts when user sent to a bot some command, for example "/command arg1 arg2"
@@ -91,26 +92,28 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 	} else {
 
 		// we assume the JSON is encoded to the button's data
-		var journeyRequest structs.JourneyRequest
-		json.Unmarshal([]byte(callbackQuery.Data), &journeyRequest)
+		journeyRequest := fromJSON(callbackQuery.Data)
 
 		// now update already printed timetables with new results
 		if journeyRequest.Command == commandUpdate {
 
-			markdownText, err := GetTimesBetweenStations(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
+			markdownText, _ := GetTimesBetweenStations(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
 
-			if err != nil {
-
-				// let's update previous message with new timetables
-				editConfig := tgbotapi.EditMessageTextConfig{
-					BaseEdit: tgbotapi.BaseEdit{
-						ChatID:    callbackQuery.Message.Chat.ID,
-						MessageID: callbackQuery.Message.MessageID,
-					},
-					Text: markdownText,
-				}
-				bot.Send(editConfig)
+			// let's update previous message with new timetables
+			editConfig := tgbotapi.EditMessageTextConfig{
+				BaseEdit: tgbotapi.BaseEdit{
+					ChatID:    callbackQuery.Message.Chat.ID,
+					MessageID: callbackQuery.Message.MessageID,
+				},
+				Text:      (markdownText + "... updated"),
+				ParseMode: "markdown",
 			}
+			resp, _ := bot.Send(editConfig)
+
+			// and update keyboard
+			keyboardMsg := renderKeyboard(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, callbackQuery.Message.Chat.ID, resp.MessageID)
+			bot.Send(keyboardMsg)
+
 		} else {
 			// TODO: save bookmark here
 		}
@@ -162,32 +165,9 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 			// 1. Send result to client
 			resp, _ := sendMsg(bot, chatID, markdownText)
 
-			fmt.Println("0----- HERE IS JSON:")
-			json := asJSON(stationIDFrom, stationID, "tube", commandUpdate)
-			fmt.Println(json)
-			fmt.Println("{ \"stationFrom\":\"test\", \"page\":2}")
-
-			fmt.Println("--")
-
 			// 2. Print buttons to save the trip and to narrow to one type of transport
-			keyboard := tgbotapi.NewInlineKeyboardMarkup(
-
-				// row 1
-				[]tgbotapi.InlineKeyboardButton{
-					tgbotapi.NewInlineKeyboardButtonData("🚇  Show only tube ", "{ \"stationFrom\":\"test\", \"page\":2}"), // HZ BLJAT :(((
-					tgbotapi.NewInlineKeyboardButtonData("🚌  Show only buses ", "{ \"title\":\"test\", \"page\":1}"),
-				},
-
-				// row 2
-				[]tgbotapi.InlineKeyboardButton{
-					tgbotapi.NewInlineKeyboardButtonData("🔖 Bookmark this search", "test2"),
-				})
-
-			keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
-
-			msg, err := bot.Send(keyboardMsg)
-			fmt.Println(msg)
-			fmt.Println(err)
+			keyboardMsg := renderKeyboard(stationIDFrom, stationID, chatID, resp.MessageID)
+			bot.Send(keyboardMsg)
 		}
 	}
 }
@@ -237,4 +217,29 @@ func asJSON(stationFrom string, stationTo string, mode string, command string) s
 
 	bytesJSON, _ := json.Marshal(journey)
 	return string(bytesJSON)
+}
+
+func fromJSON(rawJSON string) *structs.JourneyRequest {
+	var journeyRequest structs.JourneyRequest
+	json.Unmarshal([]byte(rawJSON), &journeyRequest)
+	return &journeyRequest
+}
+
+// simply render a keyboard with buttons that switch the modes
+func renderKeyboard(stationIDFrom string, stationID string, chatID int64, messageID int) *tgbotapi.EditMessageReplyMarkupConfig {
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+
+		// row 1
+		[]tgbotapi.InlineKeyboardButton{
+			tgbotapi.NewInlineKeyboardButtonData("🚇  Show only tube ", asJSON(stationIDFrom, stationID, "tube", commandUpdate)),
+			tgbotapi.NewInlineKeyboardButtonData("🚌  Show only buses ", asJSON(stationIDFrom, stationID, "bus", commandUpdate)),
+		},
+
+		// row 2
+		[]tgbotapi.InlineKeyboardButton{
+			tgbotapi.NewInlineKeyboardButtonData("🔖 Bookmark this search", asJSON(stationIDFrom, stationID, "", commandSave)),
+		})
+
+	markup := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, keyboard)
+	return &markup
 }

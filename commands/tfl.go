@@ -5,6 +5,7 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -49,17 +50,21 @@ func GetStationListByPattern(searchingPattern string, opts *structs.Opts) []inte
 func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, mode string, opts *structs.Opts) (string, error) {
 
 	location, _ := time.LoadLocation("Europe/London")
-	now := time.Now().In(location).Format("1504")
+	now := time.Now().In(location)
+	strNowTime := now.Format("1504")
+	strNowDate := now.Format("20060102")
 
-	apiURL := "https://api.tfl.gov.uk/Journey/JourneyResults/" + stationOneIcsID + "/to/" + stationTwoIcsID + "?nationalSearch=true&time=" + now + "&app_id=" + opts.AppID + "&app_key=" + opts.APIKEY
+	apiURL := "https://api.tfl.gov.uk/Journey/JourneyResults/" + stationOneIcsID + "/to/" + stationTwoIcsID + "?alternativeWalking=false&time=" + strNowTime + "&date=" + strNowDate + "&app_id=" + opts.AppID + "&app_key=" + opts.APIKEY
+
 	if len(mode) > 0 {
-		apiURL = apiURL + "&mode=" + mode
+		apiURL = apiURL + "&mode=" + mode + "&useMultiModalCall=false"
 	}
 
 	// call API
 	resp, err := httpClient.Get(apiURL)
-	if err != nil {
-		return "", err
+	if err != nil || resp.StatusCode != 200 {
+		fmt.Println("ERROR IN REST!!! with status " + resp.Status)
+		return "", errors.New("Can't perform request to the TFL site, status is " + resp.Status)
 	}
 
 	defer resp.Body.Close()
@@ -73,8 +78,9 @@ func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, mod
 	for _, journey := range result.Journeys {
 		buffer.WriteString("● *")
 
-		date, err := parseTflDate(journey.StartDateTime)
-		if err != nil {
+		date, parseErr := parseTflDate(journey.StartDateTime)
+		if parseErr != nil {
+			// if we can't parse date, then simply print is "as is"
 			buffer.WriteString(journey.StartDateTime)
 		} else {
 			buffer.WriteString(date.Format("15:04"))
