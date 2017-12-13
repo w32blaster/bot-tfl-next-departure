@@ -29,7 +29,16 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	switch command {
 
 	case "start":
-		sendMsg(bot, chatID, "Yay! Welcome! It will be fun to work with me. Start with typing /help")
+
+		resp, _ := sendMsg(bot, chatID, "Yay! Welcome! It will be fun to work with me. Start with typing /help \n\n You can start by pressing this button:")
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			[]tgbotapi.InlineKeyboardButton{
+				*renderKeyboardButtonActivateQuery(" 🚏 Enter the first station"),
+			})
+
+		keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
+		bot.Send(keyboardMsg)
 
 	case "help":
 
@@ -87,7 +96,16 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 			},
 			Text: "Ok, let's start from the beginning. Start typing a station name again",
 		}
-		bot.Send(editConfig)
+		resp, _ := bot.Send(editConfig)
+
+		// and send helping button
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			[]tgbotapi.InlineKeyboardButton{
+				*renderKeyboardButtonActivateQuery(" 🚏 Enter the first station name"),
+			})
+
+		keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(callbackQuery.Message.Chat.ID, resp.MessageID, keyboard)
+		bot.Send(keyboardMsg)
 
 	} else {
 
@@ -105,7 +123,7 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 					ChatID:    callbackQuery.Message.Chat.ID,
 					MessageID: callbackQuery.Message.MessageID,
 				},
-				Text:      (markdownText + "... updated"),
+				Text:      (markdownText + "\n_updated_"),
 				ParseMode: "markdown",
 			}
 			resp, _ := bot.Send(editConfig)
@@ -141,13 +159,21 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 		state.SaveSelectedStationForUser(userID, stationID)
 
 		// 2. send message that user selected station
-		textMarkdown := fmt.Sprintf("You selected the station %s. Now send me the destination station name please", stationID)
+		textMarkdown := fmt.Sprintf("You selected the station %s", stationID)
 		resp, _ := sendMsg(bot, chatID, textMarkdown)
 
 		// 3. send the keyboard layout with one button "start from the beginning"
-		keyboard := tgbotapi.NewInlineKeyboardMarkup([]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData("🔙  Start from the beginning ", buttonCommandReset),
-		})
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+
+			// row 1
+			[]tgbotapi.InlineKeyboardButton{
+				*renderKeyboardButtonActivateQuery(" 🚏 Send me the destination station, please"),
+			},
+
+			// row 2
+			[]tgbotapi.InlineKeyboardButton{
+				tgbotapi.NewInlineKeyboardButtonData("↩  Start from the beginning ", buttonCommandReset),
+			})
 
 		keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
 		bot.Send(keyboardMsg)
@@ -242,4 +268,13 @@ func renderKeyboard(stationIDFrom string, stationID string, chatID int64, messag
 
 	markup := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, keyboard)
 	return &markup
+}
+
+func renderKeyboardButtonActivateQuery(message string) *tgbotapi.InlineKeyboardButton {
+	emtpyString := ""
+	button := tgbotapi.InlineKeyboardButton{
+		Text: message,
+		SwitchInlineQueryCurrentChat: &emtpyString,
+	}
+	return &button
 }
