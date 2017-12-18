@@ -1,21 +1,24 @@
 package state
 
-// in the nearest future this will be replaced with proper storage
-var previousStation string
+import "github.com/w32blaster/bot-tfl-next-departure/db"
 
 // GetPreviouslySelectedStation returns the station ID that user selected before, or
 // empty string if user haven't selected anything
 func GetPreviouslySelectedStation(user int) string {
-	return previousStation
+	state, _ := db.GetStateFor(user)
+	if state == nil {
+		return ""
+	}
+	return state.StationID
 }
 
 // SaveSelectedStationForUser save selected station for a given user
 func SaveSelectedStationForUser(user int, stationID string) {
-	previousStation = stationID
+	db.SaveStateForStationID(user, stationID)
 }
 
 // ResetStateForUser removes any state for given user allowing him/her to start from
 // the beginning
 func ResetStateForUser(user int) {
-	previousStation = ""
+	db.DeleteStateFor(user)
 }

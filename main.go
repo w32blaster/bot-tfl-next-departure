@@ -10,6 +10,7 @@ import (
 	flags "github.com/jessevdk/go-flags"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/w32blaster/bot-tfl-next-departure/commands"
+	"github.com/w32blaster/bot-tfl-next-departure/db"
 	"github.com/w32blaster/bot-tfl-next-departure/structs"
 	"gopkg.in/telegram-bot-api.v4"
 )
@@ -29,6 +30,9 @@ func main() {
 	}
 
 	bot.Debug = opts.IsDebug
+
+	// initiate the database structure
+	db.Init()
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 	updates := bot.ListenForWebhook("/" + bot.Token)
@@ -54,8 +58,10 @@ func main() {
 						commands.OnStationSelected(bot, update.Message.Chat.ID, update.Message.From.ID, update.Message.Text, &opts)
 
 					} else {
+
 						// This is a simple text
 						log.Println("This is plain text: " + update.Message.Text)
+						commands.ProcessSimpleText(bot, update.Message)
 					}
 				}
 			}

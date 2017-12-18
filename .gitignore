@@ -3,3 +3,4 @@
 vendor/*/
 
 bot-tfl-next-departure
+*.db
