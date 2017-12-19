@@ -16,8 +16,9 @@ import (
 const (
 	buttonCommandReset = "startFromBeginning"
 	// keep short to meet Telegram API limitation for the button date (64 bytes)
-	commandUpdate = "u"
-	commandSave   = "s"
+	commandUpdate        = "u"
+	commandSave          = "s"
+	commandPrintBookmark = "p"
 )
 
 // ProcessCommands acts when user sent to a bot some command, for example "/command arg1 arg2"
@@ -32,17 +33,10 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "start":
 
 		resp, _ := sendMsg(bot, chatID, "Yay! Welcome! It will be fun to work with me. Start with typing /help \n\n You can start by pressing this button:")
-
-		keyboard := tgbotapi.NewInlineKeyboardMarkup(
-			[]tgbotapi.InlineKeyboardButton{
-				*renderKeyboardButtonActivateQuery(" 🚏 Enter the first station"),
-			})
-
-		keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
-		bot.Send(keyboardMsg)
+		renderButtonThatOpensInlineQuery(bot, chatID, resp.MessageID)
 
 	case "mybookmarks":
-		renderButtonsWithBookmarks(bot, chatID, message.From.ID)
+		renderButtonsWithBookmarks(bot, chatID, message.From.ID, message.MessageID)
 
 	case "help":
 
@@ -86,6 +80,9 @@ func ProcessInlineQuery(bot *tgbotapi.BotAPI, inlineQuery *tgbotapi.InlineQuery,
 //    4. save bookmarks
 func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery, opts *structs.Opts) {
 
+	chatID := callbackQuery.Message.Chat.ID
+	messageID := callbackQuery.Message.MessageID
+
 	// in this switch we decide which exactly button was clicked
 	if callbackQuery.Data == buttonCommandReset {
 
@@ -95,15 +92,15 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 		// let's clean previous messages and button
 		editConfig := tgbotapi.EditMessageTextConfig{
 			BaseEdit: tgbotapi.BaseEdit{
-				ChatID:    callbackQuery.Message.Chat.ID,
-				MessageID: callbackQuery.Message.MessageID,
+				ChatID:    chatID,
+				MessageID: messageID,
 			},
 			Text: "Ok, let's start from the beginning. Start typing a station name again",
 		}
 		resp, _ := bot.Send(editConfig)
 
 		// and send helping button
-		renderButtonThatOpensInlineQuery(bot, callbackQuery.Message.Chat.ID, resp.MessageID)
+		renderButtonThatOpensInlineQuery(bot, chatID, resp.MessageID)
 
 	} else {
 
@@ -113,13 +110,13 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 		if journeyRequest.Command == commandUpdate {
 
 			// now update already printed timetables with new results
-			markdownText, _ := GetTimesBetweenStations(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
+			markdownText, _ := GetTimesBetweenStationsAsMarkdown(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
 
 			// let's update previous message with new timetables
 			editConfig := tgbotapi.EditMessageTextConfig{
 				BaseEdit: tgbotapi.BaseEdit{
-					ChatID:    callbackQuery.Message.Chat.ID,
-					MessageID: callbackQuery.Message.MessageID,
+					ChatID:    chatID,
+					MessageID: messageID,
 				},
 				Text:      (markdownText + "\n_updated_"),
 				ParseMode: "markdown",
@@ -127,14 +124,24 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 			resp, _ := bot.Send(editConfig)
 
 			// and update keyboard
-			keyboardMsg := renderKeyboard(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, callbackQuery.Message.Chat.ID, resp.MessageID)
+			keyboardMsg := renderKeyboard(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, chatID, resp.MessageID)
 			bot.Send(keyboardMsg)
+
+		} else if journeyRequest.Command == commandPrintBookmark {
+
+			// user selected some saved bookmark. So, let's print this bookark back to him/her
+			markdownText, err := GetTimesBetweenStationsAsMarkdown(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
+			if err != nil {
+				sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey")
+			} else {
+				sendMsg(bot, chatID, markdownText)
+			}
 
 		} else {
 
 			// save bookmark to the database
 			textMarkdown := fmt.Sprintf("Ok, can you send me the name of your bookmark, please? For example, “way home” or “tain to work” (max " + string(db.MaxLengthBookmarkName) + " symbols)")
-			sendMsg(bot, callbackQuery.Message.Chat.ID, textMarkdown)
+			sendMsg(bot, chatID, textMarkdown)
 
 			// save the state that next time user types some request we know what he/she wants to save
 			db.SaveStateForBookmark(callbackQuery.From.ID, journeyRequest)
@@ -148,7 +155,7 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 	})
 }
 
-// ProcessSimpleText is called when a user typed simple text to the chat
+// ProcessSimpleText is called when a user typed a simple text to the chat (no command or any inline query, just text)
 func ProcessSimpleText(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 	// firstly, check is there any state for this user
@@ -210,7 +217,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 		state.SaveSelectedStationForUser(userID, stationID)
 
 		// 2. send message that user selected station
-		textMarkdown := fmt.Sprintf("You selected the station %s", stationID)
+		textMarkdown := fmt.Sprintf("You selected the station %s, now please send me destination station, please.", stationID)
 		resp, _ := sendMsg(bot, chatID, textMarkdown)
 
 		// 3. send the keyboard layout with one button "start from the beginning"
@@ -218,12 +225,12 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 
 			// row 1
 			[]tgbotapi.InlineKeyboardButton{
-				*renderKeyboardButtonActivateQuery(" 🚏 Send me the destination station, please"),
+				*renderKeyboardButtonActivateQuery("🚏 Enter destination station"),
 			},
 
 			// row 2
 			[]tgbotapi.InlineKeyboardButton{
-				tgbotapi.NewInlineKeyboardButtonData("↩  Start from the beginning ", buttonCommandReset),
+				tgbotapi.NewInlineKeyboardButtonData("↩ From the beginning ", buttonCommandReset),
 			})
 
 		keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
@@ -232,7 +239,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 	} else {
 
 		// here we appear after a user selects both stations and we ready to show timetables
-		markdownText, err := GetTimesBetweenStations(previouslySelectedStation, stationID, "", opts)
+		markdownText, err := GetTimesBetweenStationsAsMarkdown(previouslySelectedStation, stationID, "", opts)
 
 		if err != nil {
 			sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey")
@@ -242,7 +249,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 			resp, _ := sendMsg(bot, chatID, markdownText)
 
 			// 2. Print buttons to save the trip and to narrow to one type of transport
-			keyboardMsg := renderKeyboard(previouslySelectedStation, stationID, chatID, resp.MessageID)
+			keyboardMsg := renderKeyboard(previouslySelectedStation, stationID, "", chatID, resp.MessageID)
 			bot.Send(keyboardMsg)
 		}
 	}
@@ -282,14 +289,24 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, textMarkdown string) (tgbotapi.
 	return resp, err
 }
 
-func renderButtonsWithBookmarks(bot *tgbotapi.BotAPI, chatID int64, userID int) {
-	bookmarks := db.GetBookmarksFor(userID)
+// render the table with buttons to saved boomarks. User can click any of them to activate some bookmark
+func renderButtonsWithBookmarks(bot *tgbotapi.BotAPI, chatID int64, userID int, messageID int) {
 
-	var r string
-	for _, bookrmark := range *bookmarks {
-		r = r + bookrmark.Name + ","
+	resp, _ := sendMsg(bot, chatID, "Saved bookmarks:")
+
+	bookmarks := db.GetBookmarksFor(userID)
+	arrButtons := make([][]tgbotapi.InlineKeyboardButton, len(*bookmarks))
+
+	for i, bookrmark := range *bookmarks {
+		arrButtons[i] = []tgbotapi.InlineKeyboardButton{
+			tgbotapi.NewInlineKeyboardButtonData(bookrmark.Name,
+				asJSON(bookrmark.Journey.StationIDFrom, bookrmark.Journey.StationIDTo, bookrmark.Journey.Mode, commandPrintBookmark)),
+		}
 	}
-	sendMsg(bot, chatID, "bookmakrs: "+r)
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(arrButtons...)
+	markup := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
+	bot.Send(markup)
 }
 
 // shortcut method to encode object to JSON
@@ -312,18 +329,22 @@ func fromJSON(rawJSON string) *structs.JourneyRequest {
 }
 
 // simply render a keyboard with buttons that switch the modes
-func renderKeyboard(stationIDFrom string, stationID string, chatID int64, messageID int) *tgbotapi.EditMessageReplyMarkupConfig {
+// params:
+//  - stationIDFrom - IcsID of station where we start journey
+//  - stationID - IcsID of destination station
+//  - currentMode - currently selected mode ("tube", "bus" and so on...). It will be saved when user wants to save current search in the bookmakrs
+func renderKeyboard(stationIDFrom string, stationID string, currentMode string, chatID int64, messageID int) *tgbotapi.EditMessageReplyMarkupConfig {
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 
 		// row 1
 		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData("🚇  Show only tube ", asJSON(stationIDFrom, stationID, "tube", commandUpdate)),
-			tgbotapi.NewInlineKeyboardButtonData("🚌  Show only buses ", asJSON(stationIDFrom, stationID, "bus", commandUpdate)),
+			tgbotapi.NewInlineKeyboardButtonData("🚇  Only tube ", asJSON(stationIDFrom, stationID, "tube", commandUpdate)),
+			tgbotapi.NewInlineKeyboardButtonData("🚌  Only buses ", asJSON(stationIDFrom, stationID, "bus", commandUpdate)),
 		},
 
 		// row 2
 		[]tgbotapi.InlineKeyboardButton{
-			tgbotapi.NewInlineKeyboardButtonData("🔖 Bookmark this search", asJSON(stationIDFrom, stationID, "", commandSave)),
+			tgbotapi.NewInlineKeyboardButtonData("💾 Bookmark this search", asJSON(stationIDFrom, stationID, currentMode, commandSave)),
 		})
 
 	markup := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, keyboard)
@@ -343,7 +364,7 @@ func renderKeyboardButtonActivateQuery(message string) *tgbotapi.InlineKeyboardB
 func renderButtonThatOpensInlineQuery(bot *tgbotapi.BotAPI, chatID int64, messageID int) {
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		[]tgbotapi.InlineKeyboardButton{
-			*renderKeyboardButtonActivateQuery(" 🚏 Enter the first station name"),
+			*renderKeyboardButtonActivateQuery(" 🚏 Enter station name"),
 		})
 
 	keyboardMsg := tgbotapi.NewEditMessageReplyMarkup(chatID, messageID, keyboard)

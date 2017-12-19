@@ -47,7 +47,7 @@ func GetStationListByPattern(searchingPattern string, opts *structs.Opts) []inte
 
 // GetTimesBetweenStations calls TFL for a journey information and
 // prints in formatted list
-func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, mode string, opts *structs.Opts) (string, error) {
+func GetTimesBetweenStationsAsMarkdown(stationOneIcsID string, stationTwoIcsID string, mode string, opts *structs.Opts) (string, error) {
 
 	location, _ := time.LoadLocation("Europe/London")
 	now := time.Now().In(location)
@@ -63,6 +63,8 @@ func GetTimesBetweenStations(stationOneIcsID string, stationTwoIcsID string, mod
 	// call API
 	resp, err := httpClient.Get(apiURL)
 	if err != nil || resp.StatusCode != 200 {
+		fmt.Println(resp)
+		fmt.Println(resp.Status)
 		fmt.Println("ERROR IN REST!!! with status " + resp.Status)
 		return "", errors.New("Can't perform request to the TFL site, status is " + resp.Status)
 	}

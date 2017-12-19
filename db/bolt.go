@@ -3,7 +3,6 @@ package db
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -137,7 +136,7 @@ func SaveBookmark(userID int, bookmarkName string, journey *structs.JourneyReque
 		bookmarkName = bookmarkName[0:MaxLengthBookmarkName] + "..."
 	}
 
-	return db.Batch(func(tx *bolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 
 		// open bucket
 		b := tx.Bucket(bucketBookmarks)
@@ -214,15 +213,10 @@ func GetBookmarksFor(userID int) *[]structs.Bookmark {
 	return &arrBookmarks
 }
 
+// gets one bookmark within one transaction
 func getBookmark(tx *bolt.Tx, ID []byte) *structs.Bookmark {
 
 	b := tx.Bucket(bucketBookmarks)
-
-	b.ForEach(func(k, v []byte) error {
-		fmt.Printf("key=%s, value=%s\n", k, v)
-		return nil
-	})
-
 	bytesJSON := b.Get(ID)
 
 	if bytesJSON == nil {
