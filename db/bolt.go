@@ -26,9 +26,9 @@ const (
 
 var (
 	// bucket names
-	bucketUserToBookmarks = []byte("user-to-bookmarks")
-	bucketBookmarks       = []byte("bookmarks")
-	bucketState           = []byte("state")
+	bucketUserToBookmarks = []byte("user-to-bookmarks") // one-to-many bucket, holds map of "userID" => "bookmark IDs separated by comma"
+	bucketBookmarks       = []byte("bookmarks")         // bookmarks
+	bucketState           = []byte("state")             // keep state for a given user to remember what he/she made on previous step
 )
 
 // GetStateFor simply get the last state for a user
@@ -213,6 +213,57 @@ func GetBookmarksFor(userID int) *[]structs.Bookmark {
 	return &arrBookmarks
 }
 
+// DeleteBookmarkFor wipes out everything (bookmakrs and state) for a given user
+func DeleteBookmarkFor(userID int) error {
+	db, err := connect()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	return db.Update(func(tx *bolt.Tx) error {
+
+		bUserID := itob(userID)
+
+		// 1. Delete state
+		b := tx.Bucket(bucketState)
+		err := b.Delete(bUserID)
+		if err != nil {
+			return err
+		}
+
+		// 2. Get list of bookmarks IDs associated with that user
+		b = tx.Bucket(bucketUserToBookmarks)
+		bytesList := b.Get(bUserID)
+
+		if bytesList == nil {
+			// user doesn't have any bookmarks, skip it
+			return nil
+		}
+
+		// 3. Delete all the bookmarks, one by one
+		bb := tx.Bucket(bucketBookmarks)
+		arrIds := strings.Split(string(bytesList), ",")
+		if len(arrIds) > 0 {
+			for _, bookmakrID := range arrIds {
+				intID, _ := strconv.Atoi(bookmakrID)
+				err := bb.Delete(itob(intID))
+				if nil != err {
+					return err
+				}
+			}
+		}
+
+		// 4. Finally, delete the relation
+		err = b.Delete(bUserID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 // gets one bookmark within one transaction
 func getBookmark(tx *bolt.Tx, ID []byte) *structs.Bookmark {
 
@@ -269,5 +320,5 @@ func Init() error {
 }
 
 func connect() (*bolt.DB, error) {
-	return bolt.Open("bot.db", 0600, &bolt.Options{Timeout: 10 * time.Second})
+	return bolt.Open("storage/bot.db", 0600, &bolt.Options{Timeout: 10 * time.Second})
 }

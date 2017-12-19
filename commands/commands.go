@@ -35,14 +35,28 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		resp, _ := sendMsg(bot, chatID, "Yay! Welcome! It will be fun to work with me. Start with typing /help \n\n You can start by pressing this button:")
 		renderButtonThatOpensInlineQuery(bot, chatID, resp.MessageID)
 
-	case "mybookmarks":
-		renderButtonsWithBookmarks(bot, chatID, message.From.ID, message.MessageID)
+	case "bookmarks":
+		renderButtonsWithBookmarks(bot, chatID, message.From.ID)
+
+	case "deleteall":
+		deleteAllBookmarks(bot, chatID, message.From.ID)
+
+	case "about":
+		about := `The bot was made as a demonstration to my presentation _"Don't talk to me. Talk to my bot"_. 
+		The whole source code is publushed on the github. Please follow the link:
+
+		🔗 https://github.com/w32blaster/bot-tfl-next-departure
+
+		to learn how the bot was made. If you have any corrections or suggestions, I would happy to accept any PR from you. 
+		Cheers!`
+		sendMsg(bot, chatID, about)
 
 	case "help":
 
 		help := `This bot supports the following commands:
 			 /help - Help
-			 /mybookmarks - prints saved trips`
+			 /bookmarks - prints saved trips
+			 /deleteAll - delete all saved bookmarks`
 		sendMsg(bot, chatID, html.EscapeString(help))
 
 	default:
@@ -290,7 +304,7 @@ func sendMsg(bot *tgbotapi.BotAPI, chatID int64, textMarkdown string) (tgbotapi.
 }
 
 // render the table with buttons to saved boomarks. User can click any of them to activate some bookmark
-func renderButtonsWithBookmarks(bot *tgbotapi.BotAPI, chatID int64, userID int, messageID int) {
+func renderButtonsWithBookmarks(bot *tgbotapi.BotAPI, chatID int64, userID int) {
 
 	resp, _ := sendMsg(bot, chatID, "Saved bookmarks:")
 
@@ -307,6 +321,16 @@ func renderButtonsWithBookmarks(bot *tgbotapi.BotAPI, chatID int64, userID int, 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(arrButtons...)
 	markup := tgbotapi.NewEditMessageReplyMarkup(chatID, resp.MessageID, keyboard)
 	bot.Send(markup)
+}
+
+// Wipes out all saved bookmars for the given user
+func deleteAllBookmarks(bot *tgbotapi.BotAPI, chatID int64, userID int) {
+	err := db.DeleteBookmarkFor(userID)
+	if err != nil {
+		sendMsg(bot, chatID, "Sorry, somethind went wrong, can't delete bookmarks")
+	} else {
+		sendMsg(bot, chatID, "✅ Yep, bookmarks were deleted.")
+	}
 }
 
 // shortcut method to encode object to JSON
