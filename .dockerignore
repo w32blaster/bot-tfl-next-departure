@@ -1,0 +1,14 @@
+*.vscode
+*.md
+*.yml
+*.db
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+LICENSE
+bot-tfl-next-departure
+storage/
+nginx/
+vendor/
+!vendor/vendor.json

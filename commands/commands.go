@@ -48,6 +48,11 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		🔗 https://github.com/w32blaster/bot-tfl-next-departure
 
 		to learn how the bot was made. If you have any corrections or suggestions, I would happy to accept any PR from you. 
+
+		I also prepared the step-by-step tutorial how to make your own bot. You can find it here: 
+
+		📖 https://github.com/w32blaster/bot-tfl-next-departure/wiki
+
 		Cheers!`
 		sendMsg(bot, chatID, about)
 
