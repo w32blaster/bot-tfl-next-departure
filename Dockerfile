@@ -11,9 +11,6 @@ RUN mkdir -p /go/src/github.com/w32blaster/bot-tfl-next-departure/vendor && \
 # copy sources (please refer to .dockerignore file to see what is ignored)
 ADD . /go/src/github.com/w32blaster/bot-tfl-next-departure/
 
-RUN ls /go/src/github.com/w32blaster/bot-tfl-next-departure
-RUN ls /go/src/github.com/w32blaster/bot-tfl-next-departure/vendor
-
 RUN cd /go/src/github.com/w32blaster/bot-tfl-next-departure && \
     #
     # download fresh dependencies

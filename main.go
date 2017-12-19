@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,9 +25,12 @@ func main() {
 		panic(err)
 	}
 
+	fmt.Println("Opts:")
+	fmt.Println(opts)
+
 	bot, err := tgbotapi.NewBotAPI(opts.BotToken)
 	if err != nil {
-		panic("Bot doesn't work")
+		panic("Bot doesn't work. Reason: " + err.Error())
 	}
 
 	bot.Debug = opts.IsDebug
