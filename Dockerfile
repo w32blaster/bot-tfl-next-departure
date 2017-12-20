@@ -23,8 +23,15 @@ RUN cd /go/src/github.com/w32blaster/bot-tfl-next-departure && \
 # Phase 2: prepare the runtime container, ready for production
 #
 FROM scratch
+
+# copy our bot executable
 COPY --from=builder /go/src/github.com/w32blaster/bot-tfl-next-departure/bot /bot
+
+# copy root CA certificate to set up HTTPS connection with Telegram
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+# copy timezone databases to be able to find London location zone
+COPY --from=builder /usr/local/go/lib/time/zoneinfo.zip /usr/local/go/lib/time/zoneinfo.zip
 
 VOLUME "/storage"
 CMD ["/bot"]
