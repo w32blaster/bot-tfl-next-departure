@@ -1,33 +1,30 @@
-# bot-tfl-nextdeparture
-Telegram bot that shows the nearest transport departure from your favourite station
+![TFL Bot telegram](https://github.com/w32blaster/bot-tfl-next-departure/blob/master/img/tfl-bot-logo.png)
 
-Search station by name:
+# Unofficial TFL Bot for Telegram
+Telegram bot that shows the nearest transport departure from your favourite station. You can find the bot itself by the nickname: **@nextTrainLondonBot** or by following the link:
 
-https://api.tfl.gov.uk/swagger/ui/index.html#!/StopPoint/StopPoint_Search
+https://t.me/nextTrainLondonBot
 
-https://api.tfl.gov.uk/StopPoint/Search?query=Mill%20Hill%20East
+## Why this repository exists?
+The bot is the demonstration of bot for my presentation "Don't talk to me. Talk to my bot", so it has many comments to help developers get familiar with Telegram bots. Please find the step-by-step tutorial how to create your own bot, here is the link:
 
-Examples:
-MIll Hill East: 940GZZLUMHL / 1000147 (icsId)
-Finchley central: 940GZZLUFYC / 1015495 (icsId) / 
+📖 [Wiki: how to start with bot development](https://github.com/w32blaster/bot-tfl-next-departure/wiki)
 
-----------
+## Save data
+You can store your search as "bookmarks". We use BoltDB storage for that.
 
+## TFL API
 
-Find all the routes from this station:
+The bot uses TFL Api. Here are main requests that we perform on the request.
 
-https://api.tfl.gov.uk/StopPoint/ServiceTypes?id=940GZZLUMHL
-https://api.tfl.gov.uk/StopPoint/940GZZLUMHL/Route
+**Search station by name**. We call this endpoint when user searches a station and a popup window sith suggestions appears.
 
-https://api.tfl.gov.uk/Line/Route?ids=northern&serviceTypes=Regular
+The documentation is [here](https://api.tfl.gov.uk/swagger/ui/index.html#!/StopPoint/StopPoint_Search). For example, find all stations matching, say, "Liverp" we call:
 
------
+https://api.tfl.gov.uk/StopPoint/Search?query=Liverp
 
+**Find a route between two stations**
 
-find times by stations:
+For each station we use _icsId_ unique identifier. Here is the example of http query for the route between two stations (full documentation is [here](https://api.tfl.gov.uk/swagger/ui/index.html#!/Journey/Journey_JourneyResults)):
 
-https://api.tfl.gov.uk/Journey/JourneyResults/1000147/to/1015495?date=20171129&time=1553&timeIs=Departing&mode=tube&accessibilityPreference=NoRequirements&app_id=4c754c2a&app_key=9eec9fd4bb56bf3732b2627b391d05b9
-
-
-# Development
-mkdir storage
+https://api.tfl.gov.uk/Journey/JourneyResults/1000147/to/1015495?date=20171129&time=1553&timeIs=Departing&mode=tube&accessibilityPreference=NoRequirements&app_id=<secret>&app_key=<secret>
