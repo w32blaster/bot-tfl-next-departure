@@ -1,4 +1,4 @@
-![TFL Bot telegram](https://github.com/w32blaster/bot-tfl-next-departure/blob/master/img/tfl-bot-logo.png)
+![TFL Bot telegram](https://github.com/w32blaster/bot-tfl-next-departure/blob/master/img/tfl-bot-logo.png?raw=true)
 
 # Unofficial TFL Bot for Telegram
 Telegram bot that shows the nearest transport departure from your favourite station. You can find the bot itself by the nickname: **@nextTrainLondonBot** or by following the link:
