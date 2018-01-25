@@ -34,12 +34,16 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 		resp, _ := sendMsg(bot, chatID, "Yay! Welcome! It will be fun to work with me. Start with typing /help \n\n You can start by pressing this button:")
 		renderButtonThatOpensInlineQuery(bot, chatID, resp.MessageID)
+		state.ResetStateForUser(message.From.ID)
 
 	case "bookmarks":
 		renderButtonsWithBookmarks(bot, chatID, message.From.ID)
 
 	case "deleteall":
 		deleteAllBookmarks(bot, chatID, message.From.ID)
+
+	case "reset":
+		state.ResetStateForUser(message.From.ID)
 
 	case "about":
 		about := `The bot was made as a demonstration to my presentation _"Don't talk to me. Talk to my bot"_. 
@@ -59,9 +63,12 @@ func ProcessCommands(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	case "help":
 
 		help := `This bot supports the following commands:
+		     /start - shows start message
 			 /help - Help
 			 /bookmarks - prints saved trips
-			 /deleteAll - delete all saved bookmarks`
+			 /about - information about this bot
+			 /reset - reset the inner state for current user
+			 /deleteall - delete all saved bookmarks`
 		sendMsg(bot, chatID, html.EscapeString(help))
 
 	default:
@@ -224,7 +231,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 	previouslySelectedStation := state.GetPreviouslySelectedStation(userID)
 	stationID := strings.Split(command, " ")[2]
 
-	isStationTheSame := stationID == previouslySelectedStation // to prevent seatching jounrey from-to the same station
+	isStationTheSame := stationID == previouslySelectedStation // to prevent searching jounrey from-to the same station
 	if len(previouslySelectedStation) == 0 || isStationTheSame {
 
 		if isStationTheSame {
@@ -270,6 +277,9 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 			// 2. Print buttons to save the trip and to narrow to one type of transport
 			keyboardMsg := renderKeyboard(previouslySelectedStation, stationID, "", chatID, resp.MessageID)
 			bot.Send(keyboardMsg)
+
+			// 3. Clear state that next time user can start from the beginning
+			db.DeleteStateFor(userID)
 		}
 	}
 }
