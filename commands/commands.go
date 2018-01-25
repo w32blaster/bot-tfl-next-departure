@@ -136,29 +136,36 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 		if journeyRequest.Command == commandUpdate {
 
 			// now update already printed timetables with new results
-			markdownText, _ := GetTimesBetweenStationsAsMarkdown(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
+			markdownText, err := GetTimesBetweenStationsAsMarkdown(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
+			if err != nil {
 
-			// let's update previous message with new timetables
-			editConfig := tgbotapi.EditMessageTextConfig{
-				BaseEdit: tgbotapi.BaseEdit{
-					ChatID:    chatID,
-					MessageID: messageID,
-				},
-				Text:      (markdownText + "\n_updated_"),
-				ParseMode: "markdown",
+				sendMsg(bot, chatID, "Sorry, the request to TFL API finishes with error. Try again. Reason in: "+err.Error())
+
+			} else {
+
+				// let's update previous message with new timetables
+				editConfig := tgbotapi.EditMessageTextConfig{
+					BaseEdit: tgbotapi.BaseEdit{
+						ChatID:    chatID,
+						MessageID: messageID,
+					},
+					Text:      (markdownText + "\n_updated_"),
+					ParseMode: "markdown",
+				}
+				resp, _ := bot.Send(editConfig)
+
+				// and update keyboard
+				keyboardMsg := renderKeyboard(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, chatID, resp.MessageID)
+				bot.Send(keyboardMsg)
+
 			}
-			resp, _ := bot.Send(editConfig)
-
-			// and update keyboard
-			keyboardMsg := renderKeyboard(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, chatID, resp.MessageID)
-			bot.Send(keyboardMsg)
 
 		} else if journeyRequest.Command == commandPrintBookmark {
 
 			// user selected some saved bookmark. So, let's print this bookark back to him/her
 			markdownText, err := GetTimesBetweenStationsAsMarkdown(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
 			if err != nil {
-				sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey")
+				sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey. Reason is: "+err.Error())
 			} else {
 				sendMsg(bot, chatID, markdownText)
 			}
@@ -268,7 +275,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 		markdownText, err := GetTimesBetweenStationsAsMarkdown(previouslySelectedStation, stationID, "", opts)
 
 		if err != nil {
-			sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey")
+			sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey. The reason is: "+err.Error())
 		} else {
 
 			// 1. Send result to client

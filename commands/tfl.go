@@ -5,7 +5,6 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html"
 	"log"
@@ -45,7 +44,7 @@ func GetStationListByPattern(searchingPattern string, opts *structs.Opts) []inte
 	return answers
 }
 
-// GetTimesBetweenStations calls TFL for a journey information and
+// GetTimesBetweenStationsAsMarkdown calls TFL for a journey information and
 // prints in formatted list
 func GetTimesBetweenStationsAsMarkdown(stationOneIcsID string, stationTwoIcsID string, mode string, opts *structs.Opts) (string, error) {
 
@@ -63,10 +62,7 @@ func GetTimesBetweenStationsAsMarkdown(stationOneIcsID string, stationTwoIcsID s
 	// call API
 	resp, err := httpClient.Get(apiURL)
 	if err != nil || resp.StatusCode != 200 {
-		fmt.Println(resp)
-		fmt.Println(resp.Status)
-		fmt.Println("ERROR IN REST!!! with status " + resp.Status)
-		return "", errors.New("Can't perform request to the TFL site, status is " + resp.Status)
+		return "", err
 	}
 
 	defer resp.Body.Close()
