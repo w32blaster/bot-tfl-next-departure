@@ -27,4 +27,4 @@ https://api.tfl.gov.uk/StopPoint/Search?query=Liverp
 
 For each station we use _icsId_ unique identifier. Here is the example of http query for the route between two stations (full documentation is [here](https://api.tfl.gov.uk/swagger/ui/index.html#!/Journey/Journey_JourneyResults)):
 
-https://api.tfl.gov.uk/Journey/JourneyResults/1000147/to/1015495?date=20171129&time=1553&timeIs=Departing&mode=tube&accessibilityPreference=NoRequirements&app_id=<secret>&app_key=<secret>
+https://api.tfl.gov.uk/Journey/JourneyResults/1000147/to/1015495?date=20171129&time=1553&timeIs=Departing&mode=tube&accessibilityPreference=NoRequirements&app_id=[secret]&app_key=[secret]

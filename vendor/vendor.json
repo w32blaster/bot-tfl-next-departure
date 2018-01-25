@@ -9,6 +9,12 @@
 			"revisionTime": "2017-11-20T01:03:07Z"
 		},
 		{
+			"checksumSHA1": "rqPkqFb9X2H2IrKleNbSc0Z771Q=",
+			"path": "github.com/botanio/sdk/go",
+			"revision": "8ba83ba5c10ac34c4d8ef96b9693e41024e2d05b",
+			"revisionTime": "2017-02-08T12:38:43Z"
+		},
+		{
 			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "ecdeabc65495df2dec95d7c4a4c3e021903035e5",
@@ -25,6 +31,12 @@
 			"path": "github.com/pmezard/go-difflib/difflib",
 			"revision": "792786c7400a136282c1664665ae0a8db921c6c2",
 			"revisionTime": "2016-01-10T10:55:54Z"
+		},
+		{
+			"checksumSHA1": "bRHWLsakRSp1DmEZLLDEonyGQm4=",
+			"path": "github.com/rockneurotiko/gorequest",
+			"revision": "b232713e2cb2bbff22aaee93bfc94d0d1ceba115",
+			"revisionTime": "2015-10-24T15:49:18Z"
 		},
 		{
 			"checksumSHA1": "K0crHygPTP42i1nLKWphSlvOQJw=",
@@ -61,6 +73,12 @@
 			"path": "github.com/technoweenie/multipartstreamer",
 			"revision": "a90a01d73ae432e2611d178c18367fbaa13e0154",
 			"revisionTime": "2013-10-20T00:18:33Z"
+		},
+		{
+			"checksumSHA1": "iN//qSunKGImecnRCcQrGTFgJMk=",
+			"path": "golang.org/x/net/publicsuffix",
+			"revision": "0ed95abb35c445290478a5348a7b38bb154135fd",
+			"revisionTime": "2018-01-24T06:08:02Z"
 		},
 		{
 			"checksumSHA1": "VaWt1KQODK3z6ymfOyyxHPgzHis=",

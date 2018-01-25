@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/w32blaster/bot-tfl-next-departure/commands"
 	"github.com/w32blaster/bot-tfl-next-departure/db"
+	"github.com/w32blaster/bot-tfl-next-departure/stats"
 	"github.com/w32blaster/bot-tfl-next-departure/structs"
 	"gopkg.in/telegram-bot-api.v4"
 )
@@ -24,9 +24,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Opts:")
-	fmt.Println(opts)
 
 	bot, err := tgbotapi.NewBotAPI(opts.BotToken)
 	if err != nil {
@@ -69,6 +66,8 @@ func main() {
 					}
 				}
 			}
+
+			stats.TrackMessage(update.Message, opts.BotanToken)
 
 		} else if update.CallbackQuery != nil {
 

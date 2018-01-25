@@ -9,6 +9,7 @@ import (
 
 	"github.com/w32blaster/bot-tfl-next-departure/db"
 	"github.com/w32blaster/bot-tfl-next-departure/state"
+	"github.com/w32blaster/bot-tfl-next-departure/stats"
 	"github.com/w32blaster/bot-tfl-next-departure/structs"
 	"gopkg.in/telegram-bot-api.v4"
 )
@@ -140,6 +141,7 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 			if err != nil {
 
 				sendMsg(bot, chatID, "Sorry, the request to TFL API finishes with error. Try again. Reason in: "+err.Error())
+				stats.TrackError(err, callbackQuery.From.ID, opts.BotanToken)
 
 			} else {
 
@@ -166,6 +168,7 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 			markdownText, err := GetTimesBetweenStationsAsMarkdown(journeyRequest.StationIDFrom, journeyRequest.StationIDTo, journeyRequest.Mode, opts)
 			if err != nil {
 				sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey. Reason is: "+err.Error())
+				stats.TrackError(err, callbackQuery.From.ID, opts.BotanToken)
 			} else {
 				sendMsg(bot, chatID, markdownText)
 			}
@@ -180,6 +183,8 @@ func ProcessButtonCallback(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callbac
 			db.SaveStateForBookmark(callbackQuery.From.ID, journeyRequest)
 		}
 
+		// track the journey request
+		stats.TrackJourney(journeyRequest, callbackQuery.From.ID, opts.BotanToken)
 	}
 
 	// notify the telegram that we processed the button, it will turn "loading indicator" off
@@ -276,6 +281,7 @@ func OnStationSelected(bot *tgbotapi.BotAPI, chatID int64, userID int, command s
 
 		if err != nil {
 			sendMsg(bot, chatID, "Ah, sorry, error occurred when I asked TFL for data journey. The reason is: "+err.Error())
+			stats.TrackError(err, userID, opts.BotanToken)
 		} else {
 
 			// 1. Send result to client

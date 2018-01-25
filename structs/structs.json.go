@@ -6,9 +6,10 @@ type Opts struct {
 	Host    string `short:"h" long:"host" description:"The hostname for the bot. Default is localhost" default:"localhost"`
 	IsDebug bool   `short:"d" long:"debug" description:"Is it debug? Default is true. Disable it for production."`
 
-	BotToken string `short:"b" long:"bot-token" description:"The Bot-Token. As long as it is the sencitive data, we can't keep it in Github" required:"true"`
-	AppID    string `short:"a" long:"appid" description:"AppID that you can find from the TFL website"`
-	APIKEY   string `short:"k" long:"apikey" description:"ApiKEY that you can find fom TFL website"`
+	BotToken   string `short:"b" long:"bot-token" description:"The Bot-Token. As long as it is the sencitive data, we can't keep it in Github" required:"true"`
+	AppID      string `short:"a" long:"appid" description:"AppID that you can find from the TFL website"`
+	APIKEY     string `short:"k" long:"apikey" description:"ApiKEY that you can find fom TFL website"`
+	BotanToken string `short:"n" long:"botan-token" description:"Token used to connect to Botan statistics service" required:"true"`
 }
 
 // TFLInlineQueryResult is JSON wrapper for the result returning by TFL
