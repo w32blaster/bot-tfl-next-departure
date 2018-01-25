@@ -89,7 +89,7 @@ func GetTimesBetweenStationsAsMarkdown(stationOneIcsID string, stationTwoIcsID s
 		if len(journey.Legs) > 0 {
 			buffer.WriteString(journey.Legs[0].Mode.Name)
 			buffer.WriteString(", ")
-			buffer.WriteString(journey.Legs[0].Instruction.Summary)
+			buffer.WriteString(journey.Legs[0].Instruction.Detailed)
 		}
 
 		buffer.WriteString(")\n")
